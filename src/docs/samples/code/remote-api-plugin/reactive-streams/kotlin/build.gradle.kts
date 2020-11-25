@@ -4,13 +4,14 @@ plugins {
 
 import com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer
 import com.bmuschko.gradle.docker.tasks.container.DockerLogsContainer
+import com.github.dockerjava.api.exception.NotFoundException
 
 // tag::on-error[]
 tasks.create("removeContainer1", DockerRemoveContainer::class) {
     targetContainerId("container-that-does-not-exist")
     onError {
         // Ignore exception if container does not exist otherwise throw it
-        if (!this.message!!.contains("No such container"))
+        if (this !is NotFoundException)
             throw this
     }
 }

@@ -27,15 +27,16 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
     def "Catch exception on removal of non-existent container"() {
         buildFile << """
             import com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer
+            import com.github.dockerjava.api.exception.NotFoundException
 
             task removeNonExistentContainer(type: DockerRemoveContainer) {
                 removeVolumes = true
                 force = true
                 targetContainerId "abcdefgh1234567890"
                 onError { exception ->
-                    if (exception.message.contains("No such container")) {
+                    if (exception instanceOf NotFoundException) {
                        println "Caught Exception onError"
-                    } 
+                    }
                 }
             }
         """
@@ -50,15 +51,16 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
     def "Re-throw exception on removal of non-existent container"() {
         buildFile << """
             import com.bmuschko.gradle.docker.tasks.container.DockerRemoveContainer
+            import com.github.dockerjava.api.exception.NotFoundException
 
             task removeNonExistentContainer(type: DockerRemoveContainer) {
                 removeVolumes = true
                 force = true
                 targetContainerId "abcdefgh1234567890"
                 onError { exception ->
-                    if (exception.message.contains("No such container")) {
+                    if (exception instanceOf NotFoundException) {
                        throw exception
-                    } 
+                    }
                 }
             }
         """
@@ -94,7 +96,7 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
                     }
                 }
             }
-            
+
             removeImage {
                 targetImageId buildImage.imageId
             }
@@ -129,20 +131,20 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
                 dependsOn createContainer
                 targetContainerId createContainer.getContainerId()
             }
-            
+
             task removeContainer(type: DockerRemoveContainer) {
                 removeVolumes = true
                 force = true
                 targetContainerId startContainer.getContainerId()
             }
- 
+
             task logContainer(type: DockerLogsContainer) {
                 dependsOn startContainer
                 finalizedBy removeContainer
                 targetContainerId startContainer.getContainerId()
                 follow = true
                 tailAll = true
-                
+
                 onNext { l ->
                     logger.quiet l.toString()
                 }
@@ -160,7 +162,7 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
         buildFile << """
             import com.bmuschko.gradle.docker.tasks.image.DockerListImages
             import com.bmuschko.gradle.docker.tasks.image.DockerPullImage
-    
+
             task pullImage(type: DockerPullImage) {
                 image = '$TEST_IMAGE:$TEST_IMAGE_TAG'
             }
@@ -198,7 +200,7 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
                 containerName = "$uniqueContainerName"
                 cmd = ['/bin/sh']
             }
-            
+
             task removeContainer(type: DockerRemoveContainer) {
                 removeVolumes = true
                 force = true
@@ -210,7 +212,7 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
                 finalizedBy removeContainer
                 targetContainerId createContainer.getContainerId()
                 remotePath = "/etc/os-release"
-                
+
                 onNext { f ->
                     f.eachLine { l -> logger.quiet l }
                 }
@@ -244,14 +246,14 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
                 containerName = "$uniqueContainerName"
                 cmd = ['/bin/sh']
                 hostConfig.autoRemove = true
-                
+
                 onNext { c ->
                     if(c.warnings) {
                         throw new GradleException("Container created with warnings: " + c.warnings.join(','))
                     }
                 }
             }
-            
+
             removeContainer {
                 targetContainerId createContainer.containerId
             }
@@ -277,7 +279,7 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
                 dependsOn createContainer
                 targetContainerId createContainer.getContainerId()
             }
-            
+
             task removeContainer(type: DockerRemoveContainer) {
                 removeVolumes = true
                 force = true
@@ -289,7 +291,7 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
                 finalizedBy removeContainer
                 targetContainerId startContainer.getContainerId()
                 withCommand(['echo', 'Hello World'])
-                
+
                 onNext { f ->
                     logger.quiet f.toString()
                 }
@@ -313,7 +315,7 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
                 targetImageId { '$TEST_IMAGE_WITH_TAG' }
                 cmd = ['sleep','10']
             }
-            
+
             task removeContainer(type: DockerRemoveContainer) {
                 removeVolumes = true
                 force = true
@@ -324,7 +326,7 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
                 dependsOn createContainer
                 finalizedBy removeContainer
                 targetContainerId createContainer.getContainerId()
-                
+
                 onNext { c ->
                     if(!c.state.running) {
                         logger.error "Container should be running!"
@@ -357,7 +359,7 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
                 dependsOn createContainer
                 targetContainerId createContainer.getContainerId()
             }
-            
+
             task stopContainer(type: DockerStartContainer) {
                 targetContainerId createContainer.getContainerId()
             }
@@ -393,7 +395,7 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
             task inspectImage(type: DockerInspectImage) {
                 dependsOn pullImage
                 targetImageId pullImage.getImage()
-                
+
                 onNext { image ->
                     logger.quiet 'Cmd:        ' + image.config.cmd
                     logger.quiet 'Entrypoint: ' + image.config.entrypoint
@@ -424,7 +426,7 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
             task pullImage(type: DockerPullImage) {
                 dependsOn removeImage
                 image = 'busybox:musl'
-                
+
                 onNext { p ->
                     logger.quiet p.status + ' ' + (p.progress ?: '')
                 }
@@ -469,7 +471,7 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
                 dependsOn buildImage
                 finalizedBy removeImage
                 images.set(buildImage.images)
-                
+
                 onNext { p ->
                     logger.quiet p.status + ' ' + (p.progress ?: '')
                 }
@@ -527,7 +529,7 @@ class DockerReactiveMethodsFunctionalTest extends AbstractGroovyDslFunctionalTes
 
             task removeImage(type: DockerRemoveImage) {
                 force = true
-                targetImageId 'not_existing_image' 
+                targetImageId 'not_existing_image'
                 onComplete {
                     throw new GradleException("Should never go here!")
                 }
